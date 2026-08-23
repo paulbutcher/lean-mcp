@@ -1,0 +1,34 @@
+{
+	"name": "Ubuntu",
+	"build": { "dockerfile": "Dockerfile" },
+
+  // Shares the host's Docker daemon, so images built here are the ones `sam deploy` pushes.
+  // Microsoft publishes no moby-cli for Ubuntu resolute, but Docker's own repo carries a
+  // resolute build of the CE client, which is all this needs: the daemon is the host's.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false }
+  },
+
+  // Store Claude's persistent state on the host
+  "mounts": [
+    "source=${localEnv:HOME}/.claude-devcontainer,target=/home/vscode/.claude,type=bind,consistency=cached"
+  ],
+  
+  "postCreateCommand": {
+    "safeDirectory": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+  },
+
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "PGHOST": "host.docker.internal",
+    "PGPORT": "5432",
+    "PGUSER": "leantodomvc",
+    "PGDATABASE": "leantodomvc"
+  },
+
+	"customizations": {
+		"vscode": {
+			"extensions": ["leanprover.lean4", "anthropic.claude-code"]
+		}
+	}
+}

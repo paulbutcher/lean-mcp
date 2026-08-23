@@ -1,0 +1,6 @@
+name = "mcp"
+version = "0.1.0"
+defaultTargets = ["Mcp"]
+
+[[lean_lib]]
+name = "Mcp"
