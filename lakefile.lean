@@ -6,10 +6,10 @@ import Lake
 open Lake DSL
 
 package MCP where
-  version := v!"0.1.1"
+  version := v!"0.1.2"
   leanOptions := #[⟨`warningAsError, true⟩]
 
-require json from git "https://github.com/paulbutcher/lean-json"@"main"
+require json from git "https://github.com/paulbutcher/lean-json"@"v0.1.0"
 
 @[default_target]
 lean_lib MCP
