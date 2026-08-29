@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.3] - 2026-08-29
+
+Add `bearer?`, which reads the credential from an `Authorization` header.
+
 ## [0.1.2] - 2026-08-24
 
 Pin lean-json.

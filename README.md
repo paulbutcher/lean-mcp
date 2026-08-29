@@ -73,6 +73,10 @@ with it: `401` unauthenticated, `403` for a scope failure, `400` for a malformed
 These are OAuth artefacts rather than MCP ones, and they sit here only because MCP makes them
 mandatory and they are small.
 
+`bearer? (headers.getLast? "authorization")` reads the credential out of the request in the
+only form MCP allows. It matches the scheme case-insensitively, and anything else, including a
+header in another scheme, reads as no credential at all.
+
 ## MCP Specification Revisions
 
 This library supports [`2026-07-28`](https://modelcontextprotocol.io/specification/2026-07-28),

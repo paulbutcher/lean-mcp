@@ -59,6 +59,15 @@ def testAuth (r : Results) : Results :=
   |>.check "a challenge escapes what would end the quoted string early"
     ((AuthFailure.unauthenticated #[]).challenge "a\"b\\c"
       == "Bearer resource_metadata=\"a\\\"b\\\\c\"")
+  |>.check "a lowercase scheme carries the same credential"
+    (bearer? (some "bearer abc123") == some "abc123")
+  |>.check "the credential is not the whitespace around it"
+    (bearer? (some "  Bearer   abc123  ") == some "abc123")
+  |>.check "a request with no header presents no credential" (bearer? none).isNone
+  |>.check "a scheme with nothing after it is not a credential"
+    ((bearer? (some "Bearer")).isNone && (bearer? (some "Bearer ")).isNone)
+  |>.check "a scheme MCP does not allow is not a credential"
+    (bearer? (some "Basic YWJjOmRlZg==")).isNone
 
 /-- The spec's own example of a value the header grammar cannot carry as it stands. -/
 def testHeaderDecoding (r : Results) : Results :=

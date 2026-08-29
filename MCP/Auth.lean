@@ -37,6 +37,26 @@ def ProtectedResourceMetadata.toJson (m : ProtectedResourceMetadata) : Json :=
       ++ optional "scopes_supported" m.scopesSupported
       ++ optional "bearer_methods_supported" m.bearerMethodsSupported)
 
+/--
+The credential a request presents, if it presents one in the only form MCP allows,
+`Authorization: Bearer <token>`.
+
+The scheme is matched case-insensitively, as RFC 9110 §11.1 requires: a client sending
+`bearer` is conformant, and refusing it produces a 401 that says nothing about why.
+
+A header in any other form reads as `none`, so nothing downstream ever sees a credential the
+specification did not permit. A caller that wants to tell an absent credential from an
+unusable one can answer `AuthFailure.malformed` when the header was nonetheless present.
+
+Take `header` from `getLast?` rather than `get?`: a request carrying `Authorization` twice
+must not have the first one honoured.
+-/
+def bearer? (header : Option String) : Option String :=
+  header.bind fun value =>
+    let trimmed := value.trimAscii.toString
+    if trimmed.toLower.startsWith "bearer " then some (trimmed.drop 7).trimAscii.toString
+    else none
+
 /-- Why a request was not authorized, which is the whole of what this library knows about it. -/
 inductive AuthFailure where
   /-- No usable credential. The challenge names the scopes that would suffice, if any. -/
