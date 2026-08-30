@@ -48,13 +48,11 @@ def handle (caller : Caller) (request : HttpRequest) : IO HttpResponse :=
   serve config server caller request
 ```
 
-`m` needs `Monad` and nothing else, so tools that do no I/O can run in `Id` and be tested
-without one.
+`m` needs `Monad` and nothing else, so tools that do no I/O can run in `Id` and be tested without one.
 
 ## Who is asking
 
-Resolve a caller from the request before you dispatch, and pass it in. If you cannot resolve
-one, answer with the challenge instead of dispatching:
+Resolve a caller from the request before you dispatch, and pass it in. If you cannot resolve one, answer with the challenge instead of dispatching:
 
 ```lean
 def metadata : ProtectedResourceMetadata where
@@ -67,27 +65,15 @@ def challenge : String :=
     "https://weather.example.com/.well-known/oauth-protected-resource"
 ```
 
-Serve `metadata.toJson` from `/.well-known/oauth-protected-resource`, and send `challenge` as
-the `WWW-Authenticate` header of the refusal. `AuthFailure.status` gives the status that goes
-with it: `401` unauthenticated, `403` for a scope failure, `400` for a malformed credential.
-These are OAuth artefacts rather than MCP ones, and they sit here only because MCP makes them
-mandatory and they are small.
+Serve `metadata.toJson` from `/.well-known/oauth-protected-resource`, and send `challenge` as the `WWW-Authenticate` header of the refusal. `AuthFailure.status` gives the status that goes with it: `401` unauthenticated, `403` for a scope failure, `400` for a malformed credential. These are OAuth artefacts rather than MCP ones, and they sit here only because MCP makes them mandatory and they are small.
 
-`bearer? (headers.getLast? "authorization")` reads the credential out of the request in the
-only form MCP allows. It matches the scheme case-insensitively, and anything else, including a
-header in another scheme, reads as no credential at all.
+`bearer? (headers.getLast? "authorization")` reads the credential out of the request in the only form MCP allows. It matches the scheme case-insensitively, and anything else, including a header in another scheme, reads as no credential at all.
 
 ## MCP Specification Revisions
 
-This library supports [`2026-07-28`](https://modelcontextprotocol.io/specification/2026-07-28),
-[`2025-11-25`](https://modelcontextprotocol.io/specification/2025-11-25),
-[`2025-06-18`](https://modelcontextprotocol.io/specification/2025-06-18) and
-[`2025-03-26`](https://modelcontextprotocol.io/specification/2025-03-26).
+This library supports [`2026-07-28`](https://modelcontextprotocol.io/specification/2026-07-28), [`2025-11-25`](https://modelcontextprotocol.io/specification/2025-11-25), [`2025-06-18`](https://modelcontextprotocol.io/specification/2025-06-18) and [`2025-03-26`](https://modelcontextprotocol.io/specification/2025-03-26).
 
-**No `Mcp-Session-Id` is ever issued.** Every request stands alone. That is what lets this sit
-behind a function URL that freezes between invocations, and it means a tool needing state from
-one call to the next must hand back an explicit handle and take it as an argument, rather than
-expect the server to remember.
+**No `Mcp-Session-Id` is ever issued.** Every request stands alone. That is what lets this sit behind a function URL that freezes between invocations, and it means a tool needing state from one call to the next must hand back an explicit handle and take it as an argument, rather than expect the server to remember.
 
 ## The transport boundary
 
