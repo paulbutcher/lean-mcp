@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.0] - 2026-08-30
+
+Add `Tool.outputSchema`, the schema a client validates a tool's `structuredContent` against.
+
 ## [0.2.0] - 2026-08-30
 
 * Update to lean-json v0.2.1 and Lean v4.33.1.

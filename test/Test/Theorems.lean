@@ -115,8 +115,9 @@ theorem result_xor_error (r : Response) :
     (field? r.toJson "result").isSome = !(field? r.toJson "error").isSome := by
   cases r <;> rfl
 
--- Sixty-four leaf cases, each a field lookup that reduces through a string comparison.
-set_option maxHeartbeats 400000 in
+-- A hundred and twenty-eight leaf cases, each a field lookup that reduces through a string
+-- comparison.
+set_option maxHeartbeats 1600000 in
 /--
 A tool survives encoding and decoding unchanged, so what a client reads out of `tools/list` is
 the tool the application configured, field for field. The one encoding serves all four
@@ -124,17 +125,21 @@ revisions, and a field dropped or misnamed on the way out would be invisible to 
 inspects the fields it thought to name.
 
 `t` ranges over every `Tool`: an arbitrary `name`, an arbitrary `inputSchema`, a `description`
-present or absent, and every combination of the five optional fields of `ToolAnnotations`,
-including the empty annotations that `Tool.toJson` omits from the object entirely. `Tool.toJson`
-is the encoder `tools/list` uses and `Tool.fromJson?` the decoder, which answers `.error` on
-anything it cannot read. `.ok t` therefore says decoding both succeeds and returns the original
-record, so no field is lost, renamed, or defaulted to something other than what it held.
+present or absent, an `outputSchema` absent or holding an arbitrary value, and every combination
+of the five optional fields of `ToolAnnotations`, including the empty annotations that
+`Tool.toJson` omits from the object entirely. The `outputSchema` case matters beyond counting one
+more field: its value may itself be `null`, which an encoder and a decoder that agreed to read an
+absent field and a null one alike would return as absent, and this equation refuses that.
+`Tool.toJson` is the encoder `tools/list` uses and `Tool.fromJson?` the decoder, which answers
+`.error` on anything it cannot read. `.ok t` therefore says decoding both succeeds and returns
+the original record, so no field is lost, renamed, or defaulted to something other than what it
+held.
 -/
 theorem tool_roundTrip (t : Tool) : Tool.fromJson? t.toJson = .ok t := by
-  obtain ⟨name, schema, description, annotations⟩ := t
+  obtain ⟨name, schema, outputSchema, description, annotations⟩ := t
   obtain ⟨title, readOnly, destructive, idempotent, openWorld⟩ := annotations
-  cases description <;> cases title <;> cases readOnly <;> cases destructive <;>
-    cases idempotent <;> cases openWorld <;> rfl
+  cases outputSchema <;> cases description <;> cases title <;> cases readOnly <;>
+    cases destructive <;> cases idempotent <;> cases openWorld <;> rfl
 
 /-- The `tools` of a `tools/list` result, each read back as a `Tool`. -/
 def listedTools (j : Json) : Option (Array (Except String Tool)) :=

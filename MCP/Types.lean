@@ -23,6 +23,13 @@ def optField? (j : Json) (k : String) (α : Type) [Json.FromJson α] :
     | some v => (Option.some ·) <$> Json.fromJson? v
   | _ => .error "expected an object"
 
+/-- Absent and present-but-null are different answers for a field whose value may itself be
+`null`; `optField?` cannot tell them apart. -/
+def optFieldRaw? (j : Json) (k : String) : Except String (Option Json) :=
+  match j with
+  | .obj fields => .ok (Json.findLast? fields k)
+  | _ => .error "expected an object"
+
 /-- Reads `k` from an object, failing when the field is absent. -/
 def reqField? (j : Json) (k : String) (α : Type) [Json.FromJson α] : Except String α :=
   match j with
@@ -94,25 +101,34 @@ def ToolAnnotations.fromJson? (j : Json) : Except String ToolAnnotations := do
 /--
 A tool as it appears in `tools/list`.
 
-`inputSchema` is carried as JSON rather than a schema type: the protocol's own requirement is
-that it be a valid JSON Schema object, and validating that is the application's business.
+`inputSchema` and `outputSchema` are carried as JSON rather than a schema type: the protocol's
+own requirement is that each be a valid JSON Schema object, and validating that is the
+application's business.
+
+A tool declaring an `outputSchema` should also return the data as a text block, for a client that
+reads no `structuredContent`. That is the application's call; nothing here enforces it.
 -/
 structure Tool where
   name : String
   inputSchema : Json
+  outputSchema : Option Json := none
   description : Option String := none
   annotations : ToolAnnotations := {}
 deriving DecidableEq, Repr, Inhabited
 
 /--
-One encoding serves every supported revision: the fields below are declared, with the same
-names and the same types, by each of the four `schema.json` documents, and none of the four
-requires a field this omits.
+One encoding serves every supported revision: apart from `outputSchema`, the fields below are
+declared, with the same names and the same types, by each of the four `schema.json` documents,
+and none of the four requires a field this omits.
+
+`outputSchema` arrived at `2025-06-18`, and is emitted whatever the revision in force. It is
+absent unless an application sets one, and `Tool` is not closed to further properties, so gating
+it would change a public signature to buy a `2025-03-26` client nothing it can observe.
 -/
 def Tool.toJson (t : Tool) : Json :=
   Json.mkObj
     ([("name", Json.str t.name)] ++ Json.opt "description" t.description
-      ++ [("inputSchema", t.inputSchema)]
+      ++ [("inputSchema", t.inputSchema)] ++ Json.opt "outputSchema" t.outputSchema
       ++ (if t.annotations.isEmpty then [] else [("annotations", t.annotations.toJson)]))
 
 def Tool.fromJson? (j : Json) : Except String Tool := do
@@ -120,6 +136,7 @@ def Tool.fromJson? (j : Json) : Except String Tool := do
   return {
     name := ← reqField? j "name" String
     inputSchema := ← reqField? j "inputSchema" Json
+    outputSchema := ← optFieldRaw? j "outputSchema"
     description := ← optField? j "description" String
     annotations := ← match annotations with
       | none => .ok {}
