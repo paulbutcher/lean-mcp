@@ -49,13 +49,22 @@ def collect (body : Body.Stream) : Async ByteArray := do
 def statusOf (code : Nat) : Status :=
   (Status.ofCode none (UInt16.ofNat code)).getD .internalServerError
 
-/-- A header this library did not choose the name of is dropped rather than trusted. -/
-def headersOf (hs : Array (String × String)) : Headers :=
-  hs.foldl (fun acc (k, v) => (acc.insert? k v).getD acc) Headers.empty
+/--
+The response headers, or nothing if one of them cannot be built.
+
+Every name and value here is one this library chose, so a failure is this library being wrong
+rather than anything the request asked for. Dropping the offender would send a `200` that lies
+about its own content type, so `responseOf` sends a `500` instead.
+-/
+def headersOf (hs : Array (String × String)) : Option Headers :=
+  hs.foldlM (fun acc (k, v) => acc.insert? k v) Headers.empty
 
 def responseOf (r : HttpResponse) : Async (Std.Http.Response Body.Any) := do
-  let body ← Body.Full.ofString r.body
-  let head := Std.Http.Response.Builder.new.status (statusOf r.status)
-  return (head.headers (headersOf r.headers)).body (Body.Any.ofBody body)
+  let (status, headers, text) := match headersOf r.headers with
+    | some headers => (statusOf r.status, headers, r.body)
+    | none => (Status.internalServerError, Headers.empty, "")
+  let body ← Body.Full.ofString text
+  let head := Std.Http.Response.Builder.new.status status
+  return (head.headers headers).body (Body.Any.ofBody body)
 
 end MCP.StdHttp

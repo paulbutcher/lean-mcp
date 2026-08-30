@@ -78,6 +78,18 @@ def encodedName : HttpResponse :=
 def initializeUnknownVersion : HttpResponse :=
   post (rpc 1 "initialize" (Json.mkObj [("protocolVersion", Json.str "2024-11-05")]))
 
+def metaNotAnObject : HttpResponse :=
+  post (rpc 11 "tools/list" (Json.mkObj [("_meta", Json.str "2026-07-28")]))
+    (protocolVersion := some "2026-07-28") (mcpMethod := some "tools/list")
+
+def metaVersionNotAString : HttpResponse :=
+  post
+    (rpc 12 "tools/list"
+      (Json.mkObj
+        [("_meta", Json.mkObj
+          [(protocolVersionKey, Json.ofNat 20260728), (clientCapabilitiesKey, Json.mkObj [])])]))
+    (protocolVersion := some "2026-07-28") (mcpMethod := some "tools/list")
+
 def testErrors (r : Results) : Results :=
   r
   |>.check "unsupported version is a 400" (unsupportedVersion.status == 400)
@@ -137,5 +149,13 @@ def testErrors (r : Results) : Results :=
     (initializeUnknownVersion.status == 200
       && at? initializeUnknownVersion ["result", "protocolVersion"]
         == some (Json.str "2026-07-28"))
+  |>.check "a _meta that is not an object is malformed, not missing"
+    (metaNotAnObject.status == 400
+      && errorCode? metaNotAnObject == some (Json.ofInt (-32602))
+      && (at? metaNotAnObject ["error", "message"]).any
+        (fun j => match j with | .str m => containsText m "must be an object" | _ => false))
+  |>.check "a _meta version that is not a string is refused rather than ignored"
+    (metaVersionNotAString.status == 400
+      && errorCode? metaVersionNotAString == some (Json.ofInt (-32602)))
 
 end MCP.Test

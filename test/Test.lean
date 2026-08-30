@@ -8,3 +8,4 @@ import Test.Exchange
 import Test.Errors
 import Test.Auth
 import Test.Readme
+import Test.Transport

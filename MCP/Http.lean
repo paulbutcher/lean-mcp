@@ -66,16 +66,41 @@ def methodNotAllowed : HttpResponse := { status := 405, headers := #[("Allow", "
 /-- A notification is answered with a status and nothing else. -/
 def accepted : HttpResponse := { status := 202 }
 
-/-- The `_meta` object of a request's params, if it has one. -/
-def requestMeta (params : Json) : Option Json :=
-  optOf? params "_meta" Json
+/--
+The `_meta` object of a request's params.
 
-def metaString (params : Json) (key : String) : Option String :=
-  requestMeta params >>= fun metaObj => optOf? metaObj key String
+A `none` is "there is none", which every revision permits somewhere. An error is "there is one
+and it is not an object", which is a different thing: a client that sent a malformed `_meta` has
+not thereby sent no `_meta`, and reading the two the same way answers it as though it had.
+-/
+def requestMeta (params : Json) : Except String (Option Json) :=
+  match params with
+  | .obj fields =>
+    match Json.findLast? fields "_meta" with
+    | none => .ok none
+    | some Json.null => .ok none
+    | some j@(.obj _) => .ok (some j)
+    | some _ => .error "_meta must be an object"
+  | _ => .ok none
 
+/-- The string at `key` of a request's `_meta`, absent and unreadable kept apart. -/
+def metaString (params : Json) (key : String) : Except String (Option String) := do
+  match ← requestMeta params with
+  | none => .ok none
+  | some metaObj =>
+    match optField? metaObj key String with
+    | .ok v => .ok v
+    | .error _ => .error s!"_meta field must be a string: {key}"
+
+/--
+Whether `_meta` carries `key` at all, whatever its value.
+
+A `_meta` that is not an object answers `false` here, but never reaches this: `resolveVersion`
+refuses it first, and this runs only on a request whose version was resolved.
+-/
 def metaHas (params : Json) (key : String) : Bool :=
   match requestMeta params with
-  | some (.obj fields) => (Json.findLast? fields key).isSome
+  | .ok (some (.obj fields)) => (Json.findLast? fields key).isSome
   | _ => false
 
 def supportedVersion (s : String) : Except Failure Version :=
@@ -89,10 +114,12 @@ Which revision a request is speaking.
 The body's `_meta` is preferred over the header because it is the field the specification calls
 the version "for this request"; where both are present they must agree, and where neither is
 the transport allows a server that serves pre-`2025-06-18` clients to read `2025-03-26`, which
-this one does.
+this one does. A `_meta` the version cannot be read out of is refused rather than treated as one
+that named no version, which would answer from the header a request whose body disagreed.
 -/
-def resolveVersion (header : Option String) (fromMeta : Option String) : Except Failure Version :=
-  match fromMeta, header with
+def resolveVersion (header : Option String) (fromMeta : Except String (Option String)) :
+    Except Failure Version := do
+  match ← fromMeta.mapError Failure.malformedMeta, header with
   | some s, some h =>
     if s == h then supportedVersion s
     else .error (Failure.headerMismatch

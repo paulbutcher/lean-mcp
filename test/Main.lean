@@ -14,4 +14,5 @@ def main : IO UInt32 :=
     |> testErrors
     |> testAuth
     |> testHeaderDecoding
+    |> testTransport
     |>.report
