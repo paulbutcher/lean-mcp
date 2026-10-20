@@ -9,7 +9,7 @@ package MCP where
   version := v!"0.3.0"
   leanOptions := #[⟨`warningAsError, true⟩]
 
-require json from git "https://github.com/paulbutcher/lean-json"@"v0.2.1"
+require json from git "https://github.com/paulbutcher/lean-json"@"v0.3.1"
 
 @[default_target]
 lean_lib MCP
